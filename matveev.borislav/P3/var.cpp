@@ -15,7 +15,6 @@ void processMatrix(size_t num, std::ifstream& file, size_t rows, size_t cols, co
 void rMatrix(std::ifstream& file, int** matrix, size_t rows, size_t cols);
 void rMatrixDin(std::ifstream& file, int matrix[][max_size], size_t rows, size_t cols);
 void fillMatrix(std::istream& input, int** matrix, size_t rows, size_t cols);
-void fillMatrix(std::istream& input, int** matrix, size_t rows, size_t cols);
 }
 
 int main(int argc, char* argv[]) {
@@ -65,7 +64,11 @@ namespace matveev {
 void rMatrix(std::ifstream& file, int** matrix, size_t rows, size_t cols) {
   for (size_t i = 0; i < rows; ++i) {
     for (size_t j = 0; j < cols; ++j) {
-      file >> matrix[i][j];
+      if (!(file >> matrix[i][j])) {
+        std::cerr << "Error not enough data\n";
+        matveev::rm(matrix, rows);
+        exit(1);
+      }
     }
   }
 }
@@ -145,7 +148,10 @@ void spiral(int** matrix, size_t rows, size_t cols) {
 void rMatrixDin(std::ifstream& file, int matrix[][max_size], size_t rows, size_t cols) {
   for (size_t i = 0; i < rows; ++i) {
     for (size_t j = 0; j < cols; ++j) {
-      file >> matrix[i][j];
+      if (!(file >> matrix[i][j])) {
+        std::cerr << "Error not enough data\n";
+        exit(1);
+      }
     }
   }
 }
