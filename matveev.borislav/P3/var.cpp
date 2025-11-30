@@ -284,9 +284,14 @@ void processMatrix(size_t num, std::ifstream& file, size_t rows, size_t cols, co
 void fillMatrix(std::istream& input, int** matrix, size_t rows, size_t cols) {
   for (size_t i = 0; i < rows; ++i) {
     for (size_t j = 0; j < cols; ++j) {
-      input >> matrix[i][j];
+      if (!(input >> matrix[i][j])) {
+        std::cerr << "Error not enough data\n";
+        matveev::rm(matrix, rows);
+        exit(1);
+      }
     }
   }
 }
+
 
 }
