@@ -1,297 +1,215 @@
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 
 namespace matveev {
-constexpr size_t max_size = 100;
-void wMatrix(int** matrix, size_t rows, size_t cols, const char* filename);
-int** allocMatrix(size_t rows, size_t cols);
-void rm(int** matrix, size_t rows);
-void spiral(int** matrix, size_t rows, size_t cols);
-void wMatrixDin(int matrix[][max_size], size_t rows, size_t cols, const char* filename);
-void spiralDin(int matrix[][max_size], size_t rows, size_t cols);
-int find(int** matrix, size_t rows, size_t cols);
-int findDin(int matrix[][100], size_t rows, size_t cols);
-void processMatrix(size_t num, std::ifstream& file, size_t rows, size_t cols, const char* output);
-void rMatrix(std::ifstream& file, int** matrix, size_t rows, size_t cols);
-void rMatrixDin(std::ifstream& file, int matrix[][max_size], size_t rows, size_t cols);
-void fillMatrix(std::istream& input, int** matrix, size_t rows, size_t cols);
+  std::istream& rMatrix(std::istream& in, int* matrix, size_t rows, size_t cols);
+  std::ostream& wMatrix(std::ostream& out, const int* matrix, size_t rows, size_t cols);
+  int* allocMatrix(size_t rows, size_t cols);
+  void rm(int* matrix);
+  void spiral(int* matrix, size_t rows, size_t cols);
+  size_t find(const int* matrix, size_t rows, size_t cols);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   if (argc != 4) {
     std::cerr << "Error ./lab num input output\n";
     return 1;
   }
 
-  if (argv[1][0] < '1' || argv[1][0] > '2' || argv[1][1] != '\0') {
+  char* ePtr = nullptr;
+  long num = std::strtol(argv[1], &ePtr, 10);
+  if (*ePtr != '\0' || (num != 1 && num != 2)) {
     std::cerr << "Error first argument\n";
     return 1;
   }
 
-  int num = argv[1][0] - '0';
-  const char* input = argv[2];
-  const char* output = argv[3];
+  const char* in = argv[2];
+  const char* out = argv[3];
 
-  std::ifstream file(input);
+  std::ifstream file(in);
   if (!file.is_open()) {
     std::cerr << "Error cannot open file\n";
     return 1;
   }
 
-  size_t trows = 0, tcols = 0;
-  if (!(file >> trows >> tcols)) {
+  size_t rows = 0;
+  size_t cols = 0;
+  if (!(file >> rows >> cols)) {
     std::cerr << "Error empty or invalid file\n";
     return 1;
   }
 
-  if (trows == 0 && tcols == 0) {
-    std::ofstream out(output);
+  if (rows == 0 || cols == 0) {
+    std::ofstream oFile(out);
     return 0;
   }
 
-  if (trows <= 0 || tcols <= 0) {
-    std::cerr << "Error invalid dimensions\n";
+  constexpr size_t maxSize = 10000;
+  int fMatrix[maxSize] = {0};
+  int* matrix = nullptr;
+
+  if (num == 1) {
+    if (rows * cols > maxSize) {
+      std::cerr << "Error matrix too large for fixed array\n";
+      return 1;
+    }
+    matrix = fMatrix;
+  } else {
+    matrix = matveev::allocMatrix(rows, cols);
+    if (matrix == nullptr) {
+      std::cerr << "Error memory allocation failed\n";
+      return 1;
+    }
+  }
+
+  if (!matveev::rMatrix(file, matrix, rows, cols)) {
+    std::cerr << "Error not enough data\n";
+    if (num == 2) {
+      matveev::rm(matrix);
+    }
     return 1;
   }
 
-  matveev::processMatrix(num, file, trows, tcols, output);
+  matveev::spiral(matrix, rows, cols);
+  matveev::find(matrix, rows, cols);
+
+  std::ofstream oFile(out);
+  if (!oFile.is_open()) {
+    std::cerr << "Error cannot open output file\n";
+    if (num == 2) {
+      matveev::rm(matrix);
+    }
+    return 1;
+  }
+
+  matveev::wMatrix(oFile, matrix, rows, cols);
+
+  if (num == 2) {
+    matveev::rm(matrix);
+  }
 
   return 0;
 }
 
 namespace matveev {
 
-void rMatrix(std::ifstream& file, int** matrix, size_t rows, size_t cols) {
-  for (size_t i = 0; i < rows; ++i) {
-    for (size_t j = 0; j < cols; ++j) {
-      if (!(file >> matrix[i][j])) {
-        std::cerr << "Error not enough data\n";
-        matveev::rm(matrix, rows);
-        exit(1);
-      }
-    }
-  }
-}
-
-void wMatrix(int** matrix, size_t rows, size_t cols, const char* filename) {
-  std::ofstream file(filename);
-  for (size_t i = 0; i < rows; ++i) {
-    for (size_t j = 0; j < cols; ++j) {
-      if (j > 0) {
-        file << " ";
-      }
-      file << matrix[i][j];
-    }
-    file << "\n";
-  }
-}
-
-int** allocMatrix(size_t rows, size_t cols) {
-  int** matrix = new int*[rows];
-  try {
+  std::istream& rMatrix(std::istream& in, int* matrix, size_t rows, size_t cols)
+  {
     for (size_t i = 0; i < rows; ++i) {
-      matrix[i] = new int[cols];
-    }
-  } catch (...) {
-    for (size_t i = 0; i < rows; ++i) {
-      if (matrix[i] != nullptr) {
-        delete[] matrix[i];
+      for (size_t j = 0; j < cols; ++j) {
+        if (!(in >> matrix[i * cols + j])) {
+          return in;
+        }
       }
     }
+    return in;
+  }
+
+  std::ostream& wMatrix(std::ostream& out, const int* matrix, size_t rows, size_t cols)
+  {
+    for (size_t i = 0; i < rows; ++i) {
+      out << matrix[i * cols];
+      for (size_t j = 1; j < cols; ++j) {
+        out << " " << matrix[i * cols + j];
+      }
+      if (i < rows - 1) {
+        out << "\n";
+      }
+    }
+    return out;
+  }
+
+  int* allocMatrix(size_t rows, size_t cols)
+  {
+    return new(std::nothrow) int[rows * cols];
+  }
+
+  void rm(int* matrix)
+  {
     delete[] matrix;
-    throw;
-  }
-  return matrix;
-}
-
-void rm(int** matrix, size_t rows) {
-  for (size_t i = 0; i < rows; ++i) {
-    delete[] matrix[i];
-  }
-  delete[] matrix;
-}
-
-void spiral(int** matrix, size_t rows, size_t cols) {
-  int up_r = 0, left_c = 0;
-  int down_r = rows - 1, right_c = cols - 1;
-  int counter = 1;
-
-  while (up_r <= down_r && left_c <= right_c) {
-    for (int i = left_c; i <= right_c; ++i) {
-      matrix[down_r][i] += counter++;
-    }
-    down_r--;
-
-    if (left_c <= right_c) {
-      for (int i = down_r; i >= up_r; --i) {
-        matrix[i][right_c] += counter++;
-      }
-      right_c--;
-    }
-
-    if (up_r <= down_r) {
-      for (int i = right_c; i >= left_c; --i) {
-        matrix[up_r][i] += counter++;
-      }
-      up_r++;
-    }
-
-    if (left_c <= right_c) {
-      for (int i = up_r; i <= down_r; ++i) {
-        matrix[i][left_c] += counter++;
-      }
-      left_c++;
-    }
-  }
-}
-
-void rMatrixDin(std::ifstream& file, int matrix[][max_size], size_t rows, size_t cols) {
-  for (size_t i = 0; i < rows; ++i) {
-    for (size_t j = 0; j < cols; ++j) {
-      if (!(file >> matrix[i][j])) {
-        std::cerr << "Error not enough data\n";
-        exit(1);
-      }
-    }
-  }
-}
-
-void wMatrixDin(int matrix[][max_size], size_t rows, size_t cols, const char* filename) {
-  std::ofstream file(filename);
-  for (size_t i = 0; i < rows; ++i) {
-    for (size_t j = 0; j < cols; ++j) {
-      if (j > 0) {
-        file << " ";
-      }
-      file << matrix[i][j];
-    }
-    file << "\n";
-  }
-}
-
-void spiralDin(int matrix[][max_size], size_t rows, size_t cols) {
-  int up_r = 0, left_c = 0;
-  int down_r = rows - 1, right_c = cols - 1;
-  int counter = 1;
-
-  while (up_r <= down_r && left_c <= right_c) {
-    for (int i = left_c; i <= right_c; ++i) {
-      matrix[down_r][i] += counter++;
-    }
-    down_r--;
-
-    if (left_c <= right_c) {
-      for (int i = down_r; i >= up_r; --i) {
-        matrix[i][right_c] += counter++;
-      }
-      right_c--;
-    }
-
-    if (up_r <= down_r) {
-      for (int i = right_c; i >= left_c; --i) {
-        matrix[up_r][i] += counter++;
-      }
-      up_r++;
-    }
-
-    if (left_c <= right_c) {
-      for (int i = up_r; i <= down_r; ++i) {
-        matrix[i][left_c] += counter++;
-      }
-      left_c++;
-    }
-  }
-}
-
-int find(int** matrix, size_t rows, size_t cols) {
-  if (rows == 0 || cols == 0) {
-    return 0;
   }
 
-  int max = 0;
-  int result = 0;
+  void spiral(int* matrix, size_t rows, size_t cols)
+  {
+    size_t upR = 0;
+    size_t lC = 0;
+    size_t dR = rows - 1;
+    size_t rC = cols - 1;
+    int cnt = 1;
 
-  for (size_t col = 0; col < cols; ++col) {
-    int series = 1;
-    for (size_t row = 1; row < rows; ++row) {
-      if (matrix[row][col] == matrix[row - 1][col]) {
-        series++;
-      } else {
-        if (series > max) {
-          max = series;
-          result = col;
+    while (upR <= dR && lC <= rC) {
+      for (size_t i = lC; i <= rC; ++i) {
+        matrix[dR * cols + i] += cnt++;
+      }
+      if (dR == 0) {
+        break;
+      }
+      dR--;
+
+      if (lC <= rC) {
+        for (size_t i = dR; i >= upR && i < rows; --i) {
+          matrix[i * cols + rC] += cnt++;
+          if (i == 0) {
+            break;
+          }
         }
-        series = 1;
-      }
-    }
-    if (series > max) {
-      max = series;
-      result = col;
-    }
-  }
-
-  return result;
-}
-
-int findDin(int matrix[][100], size_t rows, size_t cols) {
-  if (rows == 0 || cols == 0) {
-    return 0;
-  }
-
-  int max = 0;
-  int result = 0;
-
-  for (size_t col = 0; col < cols; ++col) {
-    int series = 1;
-    for (size_t row = 1; row < rows; ++row) {
-      if (matrix[row][col] == matrix[row - 1][col]) {
-        series++;
-      } else {
-        if (series > max) {
-          max = series;
-          result = col;
+        if (rC == 0) {
+          break;
         }
-        series = 1;
+        rC--;
       }
-    }
-    if (series > max) {
-      max = series;
-      result = col;
-    }
-  }
 
-  return result;
-}
+      if (upR <= dR) {
+        for (size_t i = rC; i >= lC && i < cols; --i) {
+          matrix[upR * cols + i] += cnt++;
+          if (i == 0) {
+            break;
+          }
+        }
+        upR++;
+      }
 
-void processMatrix(size_t num, std::ifstream& file, size_t rows, size_t cols, const char* output) {
-  if (num == 1) {
-    int matrix[max_size][max_size] = {0};
-    matveev::rMatrixDin(file, matrix, rows, cols);
-    matveev::spiralDin(matrix, rows, cols);
-    matveev::findDin(matrix, rows, cols);
-    matveev::wMatrixDin(matrix, rows, cols, output);
-  } else if (num == 2) {
-    int** matrix = matveev::allocMatrix(rows, cols);
-    matveev::fillMatrix(file, matrix, rows, cols);
-    matveev::spiral(matrix, rows, cols);
-    matveev::find(matrix, rows, cols);
-    matveev::wMatrix(matrix, rows, cols, output);
-    matveev::rm(matrix, rows);
-}
-
-}
-
-void fillMatrix(std::istream& input, int** matrix, size_t rows, size_t cols) {
-  for (size_t i = 0; i < rows; ++i) {
-    for (size_t j = 0; j < cols; ++j) {
-      if (!(input >> matrix[i][j])) {
-        std::cerr << "Error not enough data\n";
-        matveev::rm(matrix, rows);
-        exit(1);
+      if (lC <= rC) {
+        for (size_t i = upR; i <= dR; ++i) {
+          matrix[i * cols + lC] += cnt++;
+        }
+        lC++;
       }
     }
   }
+
+  size_t find(const int* matrix, size_t rows, size_t cols)
+  {
+    if (rows == 0 || cols == 0) {
+      return 0;
+    }
+
+    size_t maxLen = 0;
+    size_t res = 0;
+
+    for (size_t col = 0; col < cols; ++col) {
+      size_t ser = 1;
+      for (size_t row = 1; row < rows; ++row) {
+        if (matrix[row * cols + col] == matrix[(row - 1) * cols + col]) {
+          ser++;
+        } else {
+          if (ser > maxLen) {
+            maxLen = ser;
+            res = col;
+          }
+          ser = 1;
+        }
+      }
+      if (ser > maxLen) {
+        maxLen = ser;
+        res = col;
+      }
+    }
+
+    return res;
+  }
+
 }
 
-
-}
